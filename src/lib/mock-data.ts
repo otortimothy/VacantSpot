@@ -1,0 +1,48 @@
+import { Property } from "@/components/ui/PropertyCard";
+
+export const MOCK_PROPERTIES: Property[] = [
+  {
+    id: "1",
+    title: "Luxury 3 Bedroom Apartment",
+    address: "Maitama District, Abuja",
+    price: 4500000,
+    type: "Apartment",
+    bedrooms: 3,
+    bathrooms: 3,
+    imageUrl: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
+    isVerified: true,
+  },
+  {
+    id: "2",
+    title: "Cozy Studio in Gwarinpa",
+    address: "Gwarinpa Estate, FCT",
+    price: 1200000,
+    type: "Studio",
+    bedrooms: 1,
+    bathrooms: 1,
+    imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+    isVerified: true,
+  },
+  {
+    id: "3",
+    title: "Modern 4 Bedroom Duplex",
+    address: "Asokoro, Abuja",
+    price: 8500000,
+    type: "Duplex",
+    bedrooms: 4,
+    bathrooms: 4,
+    imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+    isVerified: false,
+  },
+  {
+    id: "4",
+    title: "Self Contain Apartment",
+    address: "Wuse 2, Abuja",
+    price: 800000,
+    type: "Studio",
+    bedrooms: 1,
+    bathrooms: 1,
+    imageUrl: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=800&q=80",
+    isVerified: true,
+  },
+];
