@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { useProperties } from "@/context/PropertyContext";
 import Button from "@/components/ui/Button";
@@ -9,10 +9,11 @@ import Link from "next/link";
 
 import { useAuth } from "@/context/AuthContext";
 
-export default function NewListing() {
+export default function EditListing({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { id } = use(params);
+  const { getPropertyById, updateProperty } = useProperties();
   const { user, loading: authLoading } = useAuth();
-  const { addProperty } = useProperties();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function NewListing() {
       </div>
     );
   }
+  const [notFound, setNotFound] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     type: "Apartment",
@@ -39,8 +41,25 @@ export default function NewListing() {
     price: "",
     bedrooms: "",
     bathrooms: "",
-    imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "",
   });
+
+  useEffect(() => {
+    const property = getPropertyById(id);
+    if (property) {
+      setFormData({
+        title: property.title,
+        type: property.type,
+        address: property.address,
+        price: String(property.price),
+        bedrooms: String(property.bedrooms),
+        bathrooms: String(property.bathrooms),
+        imageUrl: property.imageUrl,
+      });
+    } else {
+      setNotFound(true);
+    }
+  }, [id, getPropertyById]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -55,23 +74,34 @@ export default function NewListing() {
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 800));
       
-      addProperty({
+      updateProperty(id, {
         title: formData.title,
-        type: formData.type,
+        type: formData.type as any,
         address: formData.address,
         price: Number(formData.price),
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
-        imageUrl: formData.imageUrl,
       });
 
       router.push("/dashboard");
     } catch (err) {
-      console.error("Failed to add property:", err);
+      console.error("Failed to update property:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  if (notFound) {
+    return (
+      <div className="container mx-auto px-6 py-24 text-center space-y-6">
+        <h1 className="text-3xl font-bold">Listing Not Found</h1>
+        <p className="text-muted-foreground">The listing you are trying to edit does not exist or has been removed.</p>
+        <Link href="/dashboard">
+          <Button variant="primary">Back to Dashboard</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-6 py-12 max-w-3xl">
@@ -84,8 +114,8 @@ export default function NewListing() {
 
       <div className="space-y-12">
         <div className="space-y-4 text-center">
-          <h1 className="text-4xl font-bold tracking-tight">List a New Property</h1>
-          <p className="text-muted-foreground text-lg">Provide accurate details for our field verification team.</p>
+          <h1 className="text-4xl font-bold tracking-tight">Edit Property Listing</h1>
+          <p className="text-muted-foreground text-lg">Update your property details below.</p>
         </div>
 
         <form className="space-y-8 bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[32px] border border-border shadow-xl" onSubmit={handleSubmit}>
@@ -158,21 +188,6 @@ export default function NewListing() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold border-l-4 border-primary pl-4">Media</h3>
-            <div className="border-2 border-dashed border-border rounded-2xl p-12 text-center space-y-4 hover:border-primary/50 transition-colors cursor-pointer group">
-               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary group-hover:scale-110 transition-transform">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-               </div>
-               <div>
-                  <p className="font-bold">Photos automatically generated for MVP</p>
-                  <p className="text-sm text-muted-foreground">Standard high-quality listing images will be used.</p>
-               </div>
-            </div>
-          </div>
-
           <div className="pt-6 border-t border-border flex flex-col md:flex-row gap-4">
             <Button 
               type="submit"
@@ -180,7 +195,7 @@ export default function NewListing() {
               className="flex-1 rounded-xl h-14 text-lg"
               disabled={loading}
             >
-              {loading ? "Submitting..." : "Submit for Verification"}
+              {loading ? "Updating..." : "Save Changes"}
             </Button>
             <Button variant="outline" size="lg" className="rounded-xl h-14" type="button" onClick={() => router.push("/dashboard")}>Cancel</Button>
           </div>

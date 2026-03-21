@@ -1,10 +1,67 @@
-import { MOCK_PROPERTIES } from "@/lib/mock-data";
+"use client";
+
+import { useProperties } from "@/context/PropertyContext";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
+import { useState } from "react";
+
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Admin() {
-  // Mock data for pending verifications
-  const pendingProperties = MOCK_PROPERTIES.filter((p) => !p.isVerified);
+  const { properties, updateProperty, deleteProperty } = useProperties();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (user.role !== "ADMIN") {
+        router.push("/");
+      }
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading || !user || user.role !== "ADMIN") {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Filter properties that need verification
+  const pendingProperties = properties.filter((p) => !p.isVerified);
+
+  const handleVerify = async (id: string) => {
+    setProcessingId(id);
+    try {
+      // Simulate verification process (e.g., background check)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      updateProperty(id, { isVerified: true });
+    } catch (err) {
+      console.error("Verification failed:", err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (confirm("Are you sure you want to reject and remove this listing?")) {
+      setProcessingId(id);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        deleteProperty(id);
+      } catch (err) {
+        console.error("Rejection failed:", err);
+      } finally {
+        setProcessingId(null);
+      }
+    }
+  };
 
   return (
     <div className="container mx-auto px-6 py-12 space-y-12">
@@ -53,33 +110,44 @@ export default function Admin() {
                          <p className="font-bold">₦{property.price.toLocaleString()}</p>
                       </div>
                       <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
-                         <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Agent</p>
-                         <p className="font-bold">John Doe</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
                          <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Type</p>
                          <p className="font-bold">{property.type}</p>
                       </div>
                       <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
+                         <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Status</p>
+                         <p className="font-bold text-amber-600 text-sm">Action Required</p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
                          <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Submitted</p>
-                         <p className="font-bold italic text-sm">2 hours ago</p>
+                         <p className="font-bold italic text-sm">Recently</p>
                       </div>
                    </div>
 
-                   <div className="p-6 rounded-3xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 space-y-4">
+                   <div className="p-6 rounded-3xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 space-y-2">
                       <h4 className="font-bold text-blue-800 dark:text-blue-300">Moderator Note:</h4>
                       <p className="text-sm text-blue-700 dark:text-blue-400">Please contact the field agent to confirm site visit was successful before clicking verify. Verify that images match current GPS metadata.</p>
                    </div>
 
                    <div className="flex flex-col md:flex-row gap-4 pt-4">
-                      <Button size="lg" className="rounded-2xl h-14 px-12 group bg-green-600 hover:bg-green-700">
+                      <Button 
+                        size="lg" 
+                        className="rounded-2xl h-14 px-12 group bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        onClick={() => handleVerify(property.id)}
+                        disabled={processingId === property.id}
+                      >
                          <svg className="w-5 h-5 mr-2 group-hover:scale-125 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                          </svg>
-                         Verify Listing
+                         {processingId === property.id ? "Verifying..." : "Verify Listing"}
                       </Button>
-                      <Button variant="outline" size="lg" className="rounded-2xl h-14 px-12 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20">
-                         Reject & Flag User
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="rounded-2xl h-14 px-12 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50"
+                        onClick={() => handleReject(property.id)}
+                        disabled={processingId === property.id}
+                      >
+                         Reject & Remove
                       </Button>
                    </div>
                 </div>

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
+import { PropertyProvider } from "@/context/PropertyContext";
 
 export default function RootLayout({
   children,
@@ -24,8 +25,10 @@ export default function RootLayout({
     <html lang="en" className={`${outfit.variable} antialiased`}>
       <body className="min-h-screen bg-background text-foreground flex flex-col font-sans">
         <AuthProvider>
-          <Navbar />
-          {children}
+          <PropertyProvider>
+            <Navbar />
+            {children}
+          </PropertyProvider>
         </AuthProvider>
       </body>
     </html>

@@ -13,7 +13,9 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (role: Role) => void;
+  loading: boolean;
+  login: (email: string, password?: string) => void;
+  signup: (userData: Omit<User, "id">) => void;
   logout: () => void;
 }
 
@@ -21,24 +23,54 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (role: Role) => {
-    if (!role) {
-      setUser(null);
-      return;
+  React.useEffect(() => {
+    const savedUser = localStorage.getItem("vacantspot_user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
-    setUser({
-      id: "mock-1",
-      name: role === "AGENT" ? "Abuja Agent" : role === "ADMIN" ? "Site Moderator" : "Renter User",
-      email: "mock@example.com",
+    setLoading(false);
+  }, []);
+
+  const login = (email: string, password?: string) => {
+    let role: Role = "RENTER";
+    let name = "Renter User";
+
+    if (email === "admin@vacantspot.com" && password === "admin123") {
+      role = "ADMIN";
+      name = "Site Moderator";
+    } else if (email.includes("agent")) {
+      role = "AGENT";
+      name = "Abuja Agent";
+    }
+
+    const newUser: User = {
+      id: "mock-" + Math.random().toString(36).substr(2, 4),
+      name: name,
+      email: email,
       role: role,
-    });
+    };
+    setUser(newUser);
+    localStorage.setItem("vacantspot_user", JSON.stringify(newUser));
   };
 
-  const logout = () => setUser(null);
+  const signup = (userData: Omit<User, "id">) => {
+    const newUser: User = {
+      ...userData,
+      id: `user-${Math.random().toString(36).substr(2, 9)}`,
+    };
+    setUser(newUser);
+    localStorage.setItem("vacantspot_user", JSON.stringify(newUser));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("vacantspot_user");
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

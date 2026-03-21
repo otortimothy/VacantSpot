@@ -21,39 +21,36 @@ const Navbar = () => {
         </Link>
         <div className="hidden md:flex items-center gap-8 font-medium">
           <Link href="/" className="hover:text-primary transition-colors">Home</Link>
-          
+
           {user?.role === "AGENT" && (
             <Link href="/dashboard" className="hover:text-primary transition-colors">Agent Dashboard</Link>
           )}
 
           {user?.role === "ADMIN" && (
-            <Link href="/admin" className="hover:text-primary transition-colors">Admin Queue</Link>
-          )}
-
-          {user ? (
-            <div className="flex items-center gap-4">
-               <span className="text-xs font-bold bg-muted px-2 py-1 rounded-full uppercase tracking-widest">{user.role}</span>
-               <button onClick={logout} className="hover:text-red-500 transition-colors text-sm">Logout</button>
-            </div>
-          ) : (
             <>
-              <Link href="/login" className="hover:text-primary transition-colors">Login</Link>
-              <Link href="/signup">
-                <Button size="sm">Get Started</Button>
-              </Link>
+              <Link href="/dashboard" className="hover:text-primary transition-colors">Manage Listings</Link>
+              <Link href="/admin" className="hover:text-primary transition-colors">Admin Queue</Link>
             </>
           )}
 
-          {/* Test State Switcher */}
-          <select 
-            className="text-[10px] bg-muted border border-border rounded px-1"
-            onChange={(e) => login(e.target.value as any)}
-            value={user?.role || ""}
-          >
-            <option value="">Visitor</option>
-            <option value="AGENT">Agent</option>
-            <option value="ADMIN">Admin</option>
-          </select>
+          {user ? (
+            <div className="flex items-center gap-4 pl-4 border-l border-border">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] uppercase font-black text-primary tracking-widest">{user.role}</span>
+                <span className="text-sm font-bold truncate max-w-[120px]">{user.name}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl">
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <Link href="/login" className="hover:text-primary transition-colors">Login</Link>
+              <Link href="/signup">
+                <Button size="sm" className="rounded-xl shadow-md">Get Started</Button>
+              </Link>
+            </div>
+          )}
         </div>
         <button className="md:hidden p-2 text-muted-foreground">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
