@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase/client";
 
 export default function Login() {
   const router = useRouter();
-  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -28,23 +27,25 @@ export default function Login() {
     setError(null);
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log(process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
       
-      // Pass email and password to the login function
-      login(formData.email, formData.password);
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      // Redirect to home
-      router.push("/");
-    } catch (err) {
-      setError("Invalid email or password. Please try again.");
+      if (signInError) {
+        throw signInError;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleMockLogin = (email: string, pass: string) => {
-    setFormData({ email, password: pass });
   };
 
   return (
@@ -55,7 +56,7 @@ export default function Login() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black text-xl group-hover:rotate-6 transition-transform text-center mx-auto">V</div>
           </Link>
           <h1 className="text-3xl font-bold tracking-tight">Welcome Back</h1>
-          <p className="text-muted-foreground">Login to manage your vacant spots.</p>
+          <p className="text-muted-foreground">Sign in to manage your property listings.</p>
         </div>
 
         {error && (
@@ -66,22 +67,22 @@ export default function Login() {
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <Input 
-              label="Email Address" 
+            <Input
+              label="Email Address"
               name="email"
-              type="email" 
-              placeholder="name@example.com" 
-              required 
+              type="email"
+              placeholder="name@example.com"
+              required
               value={formData.email}
               onChange={handleChange}
             />
             <div className="space-y-1">
-              <Input 
-                label="Password" 
+              <Input
+                label="Password"
                 name="password"
-                type="password" 
-                placeholder="••••••••" 
-                required 
+                type="password"
+                placeholder="••••••••"
+                required
                 value={formData.password}
                 onChange={handleChange}
               />
@@ -91,8 +92,8 @@ export default function Login() {
             </div>
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full h-12 rounded-xl text-lg"
             disabled={loading}
           >
@@ -100,46 +101,8 @@ export default function Login() {
           </Button>
         </form>
 
-        <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-border space-y-3">
-          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest text-center">Mock Access (MVP Only)</p>
-          <div className="grid grid-cols-3 gap-2">
-            <button 
-              onClick={() => handleMockLogin("admin@vacantspot.com", "admin123")}
-              className="text-[10px] py-2 bg-white dark:bg-slate-700 hover:bg-primary/10 border border-border rounded-lg transition-colors font-bold"
-            >
-              Admin
-            </button>
-            <button 
-              onClick={() => handleMockLogin("agent@vacantspot.com", "agent123")}
-              className="text-[10px] py-2 bg-white dark:bg-slate-700 hover:bg-primary/10 border border-border rounded-lg transition-colors font-bold"
-            >
-              Agent
-            </button>
-            <button 
-              onClick={() => handleMockLogin("user@example.com", "user123")}
-              className="text-[10px] py-2 bg-white dark:bg-slate-700 hover:bg-primary/10 border border-border rounded-lg transition-colors font-bold"
-            >
-              Renter
-            </button>
-          </div>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border"></span>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-slate-800 px-2 text-muted-foreground font-medium">Or continue with</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-           <Button variant="outline" className="rounded-xl h-12 shadow-sm">Google</Button>
-           <Button variant="outline" className="rounded-xl h-12 shadow-sm">Apple</Button>
-        </div>
-
         <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Don&apos;t have a landlord account?{" "}
           <Link href="/signup" className="font-bold text-primary hover:underline">Create one</Link>
         </p>
       </div>

@@ -13,23 +13,40 @@ export const metadata: Metadata = {
 };
 
 import Navbar from "@/components/Navbar";
-import { AuthProvider } from "@/context/AuthContext";
-import { PropertyProvider } from "@/context/PropertyContext";
+import { createClient } from "@/lib/supabase/server";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  
+  let userProfile = null;
+  if (authUser) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authUser.id)
+      .single();
+    if (data) {
+      userProfile = {
+        id: authUser.id,
+        name: data.name || "User",
+        email: data.email,
+        role: data.role,
+        has_paid: data.has_paid,
+        is_verified: data.is_verified,
+      };
+    }
+  }
+
   return (
     <html lang="en" className={`${outfit.variable} antialiased`}>
       <body className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-        <AuthProvider>
-          <PropertyProvider>
-            <Navbar />
-            {children}
-          </PropertyProvider>
-        </AuthProvider>
+        <Navbar user={userProfile} />
+        {children}
       </body>
     </html>
   );

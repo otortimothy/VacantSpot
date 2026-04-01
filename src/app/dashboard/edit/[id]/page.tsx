@@ -2,38 +2,20 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { useProperties } from "@/context/PropertyContext";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Link from "next/link";
-
-import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase/client";
 
 export default function EditListing({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
-  const { getPropertyById, updateProperty } = useProperties();
-  const { user, loading: authLoading } = useAuth();
+  
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/login");
-      } else if (user.role !== "AGENT" && user.role !== "ADMIN") {
-        router.push("/");
-      }
-    }
-  }, [user, authLoading, router]);
-
-  if (authLoading || !user || (user.role !== "AGENT" && user.role !== "ADMIN")) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const [fetching, setFetching] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: "",
     type: "Apartment",
@@ -41,27 +23,50 @@ export default function EditListing({ params }: { params: Promise<{ id: string }
     price: "",
     bedrooms: "",
     bathrooms: "",
-    imageUrl: "",
+    description: "",
   });
 
   useEffect(() => {
-    const property = getPropertyById(id);
-    if (property) {
-      setFormData({
-        title: property.title,
-        type: property.type,
-        address: property.address,
-        price: String(property.price),
-        bedrooms: String(property.bedrooms),
-        bathrooms: String(property.bathrooms),
-        imageUrl: property.imageUrl,
-      });
-    } else {
-      setNotFound(true);
-    }
-  }, [id, getPropertyById]);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.push("/login");
+      } else {
+        setUserId(user.id);
+      }
+    });
+  }, [router, supabase.auth]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchProperty = async () => {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", id)
+        .eq("landlord_id", userId)
+        .single();
+
+      if (error || !data) {
+        setNotFound(true);
+      } else {
+        setFormData({
+          title: data.title,
+          type: data.type,
+          address: data.address,
+          price: String(data.price),
+          bedrooms: String(data.bedrooms),
+          bathrooms: String(data.bathrooms),
+          description: data.description || "",
+        });
+      }
+      setFetching(false);
+    };
+
+    fetchProperty();
+  }, [id, userId, supabase]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -71,19 +76,24 @@ export default function EditListing({ params }: { params: Promise<{ id: string }
     setLoading(true);
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      updateProperty(id, {
-        title: formData.title,
-        type: formData.type as any,
-        address: formData.address,
-        price: Number(formData.price),
-        bedrooms: Number(formData.bedrooms),
-        bathrooms: Number(formData.bathrooms),
-      });
+      const { error } = await supabase
+        .from("properties")
+        .update({
+          title: formData.title,
+          type: formData.type,
+          address: formData.address,
+          price: Number(formData.price),
+          bedrooms: Number(formData.bedrooms),
+          bathrooms: Number(formData.bathrooms),
+          description: formData.description,
+        })
+        .eq("id", id)
+        .eq("landlord_id", userId);
+
+      if (error) throw error;
 
       router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       console.error("Failed to update property:", err);
     } finally {
@@ -91,13 +101,21 @@ export default function EditListing({ params }: { params: Promise<{ id: string }
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   if (notFound) {
     return (
       <div className="container mx-auto px-6 py-24 text-center space-y-6">
         <h1 className="text-3xl font-bold">Listing Not Found</h1>
-        <p className="text-muted-foreground">The listing you are trying to edit does not exist or has been removed.</p>
+        <p className="text-muted-foreground">The listing you are trying to edit does not exist or you do not have permission to edit it.</p>
         <Link href="/dashboard">
-          <Button variant="primary">Back to Dashboard</Button>
+          <Button variant="outline">Back to Dashboard</Button>
         </Link>
       </div>
     );
@@ -153,6 +171,16 @@ export default function EditListing({ params }: { params: Promise<{ id: string }
               value={formData.address}
               onChange={handleChange}
             />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground/80 ml-1">Description</label>
+              <textarea
+                name="description"
+                placeholder="Describe your property..."
+                className="w-full px-4 py-3 rounded-xl border border-border bg-background min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                value={formData.description}
+                onChange={handleChange}
+              />
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -192,7 +220,7 @@ export default function EditListing({ params }: { params: Promise<{ id: string }
             <Button 
               type="submit"
               size="lg" 
-              className="flex-1 rounded-xl h-14 text-lg"
+              className="flex-1 rounded-xl h-14 text-lg bg-primary"
               disabled={loading}
             >
               {loading ? "Updating..." : "Save Changes"}

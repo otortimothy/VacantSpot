@@ -2,14 +2,32 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import Button from "./ui/Button";
-import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase/client";
 
-const Navbar = () => {
-  const { user, logout } = useAuth();
+interface NavbarProps {
+  user: any;
+}
+
+const Navbar = ({ user }: NavbarProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+  };
+
+  const roleLabel =
+    user?.role === "LANDLORD"
+      ? "Landlord / Agent"
+      : user?.role === "ADMIN"
+      ? "Admin"
+      : null;
 
   return (
     <nav className="sticky top-0 z-50 bg-background border-b border-border">
@@ -25,41 +43,68 @@ const Navbar = () => {
 
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-8 font-medium">
-          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+          <Link 
+            href="/" 
+            className={`hover:text-primary transition-colors ${pathname === "/" ? "text-primary" : "text-foreground"}`}
+          >
+            Browse Listings
+          </Link>
 
-          {user?.role === "AGENT" && (
-            <Link href="/dashboard" className="hover:text-primary transition-colors">Agent Dashboard</Link>
-          )}
-
-          {user?.role === "ADMIN" && (
+          {user?.role === "LANDLORD" && (
             <>
-              <Link href="/dashboard" className="hover:text-primary transition-colors">Manage Listings</Link>
-              <Link href="/admin" className="hover:text-primary transition-colors">Admin Queue</Link>
+              <Link 
+                href="/dashboard" 
+                className={`hover:text-primary transition-colors ${pathname === "/dashboard" ? "text-primary" : "text-foreground"}`}
+              >
+                My Dashboard
+              </Link>
+              <Link 
+                href="/dashboard/profile" 
+                className={`hover:text-primary transition-colors ${pathname.startsWith("/dashboard/profile") ? "text-primary" : "text-foreground"}`}
+              >
+                My Profile
+              </Link>
+              <Link
+                href={`/landlord/${user.id}`}
+                className={`hover:text-primary transition-colors ${pathname === `/landlord/${user.id}` ? "text-primary" : "text-foreground"}`}
+              >
+                Public Page
+              </Link>
             </>
           )}
 
+          {user?.role === "ADMIN" && (
+            <Link 
+              href="/admin" 
+              className={`hover:text-primary transition-colors ${pathname.startsWith("/admin") ? "text-primary" : "text-foreground"}`}
+            >
+              Admin Queue
+            </Link>
+          )}
+
           {user ? (
+            /* Logged-in landlord/admin */
             <div className="flex items-center gap-4 pl-4 border-l border-border">
               <div className="flex flex-col items-end">
-                <span className="text-[10px] uppercase font-black text-primary tracking-widest">{user.role}</span>
-                <span className="text-sm font-bold truncate max-w-[120px]">{user.name}</span>
+                <span className="text-[10px] uppercase font-black text-primary tracking-widest">{roleLabel}</span>
+                <span className="text-sm font-bold truncate max-w-[140px]">{user.name}</span>
               </div>
               <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl">
                 Logout
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-4">
-              <Link href="/login" className="hover:text-primary transition-colors">Login</Link>
-              <Link href="/signup">
-                <Button size="sm" className="rounded-xl shadow-md">Get Started</Button>
-              </Link>
-            </div>
+            /* Not logged in — only show landlord CTA */
+            <Link href="/login">
+              <Button size="sm" className="rounded-xl shadow-md">
+                🏢 List Your Property
+              </Button>
+            </Link>
           )}
         </div>
 
         {/* Mobile menu button */}
-        <button 
+        <button
           className="md:hidden p-2 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
           onClick={toggleMenu}
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
@@ -80,17 +125,48 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-background animate-in slide-in-from-top duration-300 border-b border-border">
           <div className="flex flex-col p-6 gap-6 font-medium">
-            <Link href="/" className="hover:text-primary transition-colors py-2" onClick={toggleMenu}>Home</Link>
-            
-            {user?.role === "AGENT" && (
-              <Link href="/dashboard" className="hover:text-primary transition-colors py-2" onClick={toggleMenu}>Agent Dashboard</Link>
+            <Link 
+              href="/" 
+              className={`hover:text-primary transition-colors py-2 ${pathname === "/" ? "text-primary font-bold" : ""}`} 
+              onClick={toggleMenu}
+            >
+              Browse Listings
+            </Link>
+
+            {user?.role === "LANDLORD" && (
+              <>
+                <Link 
+                  href="/dashboard" 
+                  className={`hover:text-primary transition-colors py-2 ${pathname === "/dashboard" ? "text-primary font-bold" : ""}`} 
+                  onClick={toggleMenu}
+                >
+                  My Dashboard
+                </Link>
+                <Link 
+                  href="/dashboard/profile" 
+                  className={`hover:text-primary transition-colors py-2 ${pathname.startsWith("/dashboard/profile") ? "text-primary font-bold" : ""}`} 
+                  onClick={toggleMenu}
+                >
+                  My Profile
+                </Link>
+                <Link 
+                  href={`/landlord/${user.id}`} 
+                  className={`hover:text-primary transition-colors py-2 ${pathname === `/landlord/${user.id}` ? "text-primary font-bold" : ""}`} 
+                  onClick={toggleMenu}
+                >
+                  Public Page
+                </Link>
+              </>
             )}
 
             {user?.role === "ADMIN" && (
-              <>
-                <Link href="/dashboard" className="hover:text-primary transition-colors py-2" onClick={toggleMenu}>Manage Listings</Link>
-                <Link href="/admin" className="hover:text-primary transition-colors py-2" onClick={toggleMenu}>Admin Queue</Link>
-              </>
+              <Link 
+                href="/admin" 
+                className={`hover:text-primary transition-colors py-2 ${pathname.startsWith("/admin") ? "text-primary font-bold" : ""}`} 
+                onClick={toggleMenu}
+              >
+                Admin Queue
+              </Link>
             )}
 
             <div className="pt-6 border-t border-border mt-2">
@@ -98,7 +174,7 @@ const Navbar = () => {
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-black text-primary tracking-widest">{user.role}</span>
+                      <span className="text-[10px] uppercase font-black text-primary tracking-widest">{roleLabel}</span>
                       <span className="text-lg font-bold">{user.name}</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => { logout(); toggleMenu(); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl">
@@ -107,14 +183,11 @@ const Navbar = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-4">
-                  <Link href="/login" className="hover:text-primary transition-colors py-2 w-full text-center border border-border rounded-xl" onClick={toggleMenu}>
-                    Login
-                  </Link>
-                  <Link href="/signup" onClick={toggleMenu}>
-                    <Button className="w-full rounded-xl shadow-md h-12 text-base">Get Started</Button>
-                  </Link>
-                </div>
+                <Link href="/login" onClick={toggleMenu}>
+                  <Button className="w-full rounded-xl shadow-md h-12 text-base">
+                    🏢 List Your Property
+                  </Button>
+                </Link>
               )}
             </div>
           </div>

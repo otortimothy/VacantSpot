@@ -2,30 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase/client";
 
 export default function Signup() {
   const router = useRouter();
-  const { signup } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    role: "RENTER" as "RENTER" | "AGENT",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    if (type === "radio") {
-      setFormData((prev) => ({ ...prev, role: name === "role" && value === "agent" ? "AGENT" : "RENTER" }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +28,6 @@ export default function Signup() {
     setLoading(true);
     setError(null);
 
-    // Simple validation
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters long.");
       setLoading(false);
@@ -41,19 +35,36 @@ export default function Signup() {
     }
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      signup({
-        name: formData.name,
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
-        role: formData.role,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            role: "LANDLORD",
+          },
+        },
       });
 
-      // Redirect to dashboard or home
-      router.push("/");
-    } catch (err) {
-      setError("Something went wrong. Please try again.");
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      // Check if email confirmation is required by this Supabase project
+      if (data?.session) {
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        // Redirect to OTP verification page
+        router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
+      }
+    } catch (err: any) {
+      console.error("DEBUG SIGNUP ERROR:", err);
+      if (err.message === "Failed to fetch") {
+        setError("Network Error: Could not connect to Supabase. Please check your internet connection or if the Supabase project is active.");
+      } else {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -66,8 +77,18 @@ export default function Signup() {
           <Link href="/" className="inline-flex items-center gap-2 group mb-4">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black text-xl group-hover:rotate-6 transition-transform text-center mx-auto">V</div>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Create Account</h1>
-          <p className="text-muted-foreground">Join Abuja&apos;s most trusted housing platform.</p>
+          <h1 className="text-3xl font-bold tracking-tight">List Your Property</h1>
+          <p className="text-muted-foreground">Create a landlord account to post and manage your listings.</p>
+        </div>
+
+        {/* What you get */}
+        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-primary">As a Landlord you can</p>
+          <ul className="text-sm text-foreground/80 space-y-1">
+            <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Post unlimited property listings</li>
+            <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Verify & manage listings instantly</li>
+            <li className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Edit or remove listings anytime</li>
+          </ul>
         </div>
 
         {error && (
@@ -76,86 +97,59 @@ export default function Signup() {
           </div>
         )}
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <Input 
-              label="Full Name" 
+        {success ? (
+          <div className="p-6 text-sm text-green-800 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center space-y-2">
+            <p className="font-bold text-lg">Check your email!</p>
+            <p>We sent a confirmation link to <strong>{formData.email}</strong> to verify your account.</p>
+          </div>
+        ) : (
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <Input
+              label="Full Name"
               name="name"
-              type="text" 
-              placeholder="John Doe" 
-              required 
+              type="text"
+              placeholder="John Doe"
+              required
               value={formData.name}
               onChange={handleChange}
             />
-            <Input 
-              label="Email Address" 
+            <Input
+              label="Email Address"
               name="email"
-              type="email" 
-              placeholder="name@example.com" 
-              required 
+              type="email"
+              placeholder="name@example.com"
+              required
               value={formData.email}
               onChange={handleChange}
             />
-            <Input 
-              label="Password" 
+            <Input
+              label="Password"
               name="password"
-              type="password" 
-              placeholder="••••••••" 
-              required 
+              type="password"
+              placeholder="••••••••"
+              required
               value={formData.password}
               onChange={handleChange}
             />
-          </div>
 
-          <div className="space-y-4">
-             <div 
-               className={`flex items-center gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${
-                 formData.role === "RENTER" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border bg-muted/30"
-               }`}
-               onClick={() => setFormData(p => ({ ...p, role: "RENTER" }))}
-             >
-                <input 
-                  type="radio" 
-                  name="role" 
-                  id="renter" 
-                  value="renter"
-                  checked={formData.role === "RENTER"} 
-                  onChange={handleChange}
-                  className="w-4 h-4 text-primary" 
-                />
-                <label htmlFor="renter" className="text-sm font-medium cursor-pointer">I&apos;m looking for a home</label>
-             </div>
-             <div 
-               className={`flex items-center gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${
-                 formData.role === "AGENT" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border bg-muted/30"
-               }`}
-               onClick={() => setFormData(p => ({ ...p, role: "AGENT" }))}
-             >
-                <input 
-                  type="radio" 
-                  name="role" 
-                  id="agent" 
-                  value="agent"
-                  checked={formData.role === "AGENT"} 
-                  onChange={handleChange}
-                  className="w-4 h-4 text-primary" 
-                />
-                <label htmlFor="agent" className="text-sm font-medium cursor-pointer">I&apos;m a landlord/agent</label>
-             </div>
-          </div>
-
-          <Button 
-            type="submit" 
-            className="w-full h-12 rounded-xl text-lg"
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Get Started"}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full h-12 rounded-xl text-lg"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create Landlord Account"}
+            </Button>
+          </form>
+        )}
 
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-primary hover:underline">Sign In</Link>
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground border-t border-border pt-4">
+          Just browsing for a home?{" "}
+          <Link href="/" className="font-bold text-primary hover:underline">Browse listings →</Link>
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground/60 px-4">

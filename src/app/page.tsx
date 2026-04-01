@@ -1,7 +1,31 @@
 import PropertyList from "@/components/PropertyList";
-import { MOCK_PROPERTIES } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+// Next.js config to revalidate this page or make it dynamic
+export const revalidate = 0; // for MVP, always fetch fresh data 
+
+export default async function Home() {
+  const supabase = await createClient();
+  
+  
+  // RLS will automatically filter out properties from unverified/unpaid landlords
+  const { data: dbProperties } = await supabase
+    .from("properties")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const properties = (dbProperties || []).map(p => ({
+    id: p.id,
+    title: p.title,
+    type: p.type,
+    address: p.address,
+    price: p.price,
+    bedrooms: p.bedrooms,
+    bathrooms: p.bathrooms,
+    imageUrl: p.image_urls?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+    isVerified: true, // Only verified properties are fetched due to RLS
+  }));
+
   return (
     <main className="flex-1">
       {/* Hero Section */}
@@ -30,8 +54,7 @@ export default function Home() {
       </section>
 
       {/* Interactive Property List */}
-      <PropertyList initialProperties={MOCK_PROPERTIES} />
-
+      <PropertyList initialProperties={properties} />
 
       {/* Trust Section */}
       <section className="bg-slate-50 dark:bg-slate-900 overflow-hidden py-24">
@@ -79,4 +102,3 @@ export default function Home() {
     </main>
   );
 }
-
