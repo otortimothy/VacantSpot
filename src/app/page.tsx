@@ -8,11 +8,13 @@ export default async function Home() {
   const supabase = await createClient();
   
   
-  // RLS will automatically filter out properties from unverified/unpaid landlords
+  // Only show verified properties publicly — non-negotiable platform rule
   const { data: dbProperties } = await supabase
     .from("properties")
     .select("*")
+    .eq("status", "verified")
     .order("created_at", { ascending: false });
+
 
   const properties = (dbProperties || []).map(p => ({
     id: p.id,
@@ -23,7 +25,9 @@ export default async function Home() {
     bedrooms: p.bedrooms,
     bathrooms: p.bathrooms,
     imageUrl: p.image_urls?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
-    isVerified: true, // Only verified properties are fetched due to RLS
+    isVerified: true,
+    verifiedAt: p.verified_at || null,
+
   }));
 
   return (

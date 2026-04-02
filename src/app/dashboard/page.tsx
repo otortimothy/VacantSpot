@@ -20,6 +20,21 @@ export default async function DashboardPage({
 
   if (!profile) return null;
 
+  // Case 0: Suspended account
+  if (profile.is_suspended) {
+    return (
+      <div className="container mx-auto px-6 py-20 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-xl">
+        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 text-4xl mb-4">
+          🚫
+        </div>
+        <h1 className="text-4xl font-black tracking-tight text-red-600">Account Suspended</h1>
+        <p className="text-lg text-muted-foreground text-balance">
+          Your account has been suspended by an administrator. If you believe this is an error, please contact VacantSpot support.
+        </p>
+      </div>
+    );
+  }
+
   // Case 1: has_paid = false
   if (!profile.has_paid) {
     return (
@@ -62,20 +77,29 @@ export default async function DashboardPage({
           Thank you for your payment! Our admin team is currently reviewing your account details. You will be able to post properties as soon as you are verified.
         </p>
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full text-sm font-bold text-muted-foreground mt-4">
-           Status: Pending Admin Match
+           Status: Pending Admin Review
         </div>
       </div>
     );
   }
 
-  // Case 3: has_paid = true AND is_verified = true
+  // Case 3: has_paid = true AND is_verified = true — Show dashboard
   const { data: properties } = await supabase
     .from("properties")
     .select("*")
     .eq("landlord_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Map to the dashboard representation
+  // Fetch inquiries for all their properties
+  const propertyIds = (properties || []).map(p => p.id);
+  const { data: inquiries } = propertyIds.length > 0
+    ? await supabase
+        .from("inquiries")
+        .select("*")
+        .in("property_id", propertyIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
   const mappedProperties = (properties || []).map(p => ({
     id: p.id,
     title: p.title,
@@ -85,8 +109,14 @@ export default async function DashboardPage({
     bedrooms: p.bedrooms,
     bathrooms: p.bathrooms,
     imageUrl: p.image_urls?.[0] || "",
-    isVerified: true, // If they are on this dashboard, their properties are verified
+    status: p.status as "pending" | "verified" | "rejected",
+    rejectionReason: p.rejection_reason || null,
   }));
 
-  return <DashboardClient initialProperties={mappedProperties} />;
+  return (
+    <DashboardClient
+      initialProperties={mappedProperties}
+      inquiries={inquiries || []}
+    />
+  );
 }
