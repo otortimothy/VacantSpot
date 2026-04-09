@@ -81,11 +81,13 @@ export default function NewListing() {
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         description: formData.description,
+        imageurl: "", // legacy column — kept to satisfy NOT NULL constraint
         image_urls: uploadedUrls.length > 0 ? uploadedUrls : [
            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
         ],
         landlord_id: userId,
       });
+
 
       if (insertError) throw insertError;
 
