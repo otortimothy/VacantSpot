@@ -1,7 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+
+import { sendInquiryNotification } from "@/lib/email";
 
 export async function submitInquiry(formData: FormData) {
   const propertyId = formData.get("property_id") as string;
@@ -22,7 +24,9 @@ export async function submitInquiry(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const db = createAdminClient();
 
+  // 1. Save inquiry to database
   const { error } = await supabase.from("inquiries").insert({
     property_id: propertyId,
     tenant_name: tenantName.trim(),
@@ -36,14 +40,46 @@ export async function submitInquiry(formData: FormData) {
     throw new Error("Failed to submit inquiry. Please try again.");
   }
 
+  // 2. Fetch property + landlord details to send email
+  const { data: property } = await db
+    .from("properties")
+    .select("title, address, landlord_id")
+    .eq("id", propertyId)
+    .single();
+
+  if (property?.landlord_id) {
+    const { data: landlord } = await db
+      .from("profiles")
+      .select("name, email")
+      .eq("id", property.landlord_id)
+      .single();
+
+    if (landlord?.email) {
+      // 3. Send email notification to landlord
+      await sendInquiryNotification({
+        landlordEmail: landlord.email,
+        landlordName: landlord.name || "Landlord",
+        seekerName: tenantName.trim(),
+        seekerEmail: tenantEmail.trim().toLowerCase(),
+        message: message.trim(),
+        propertyTitle: property.title,
+        propertyAddress: property.address,
+        propertyId,
+      });
+    }
+  }
+
   revalidatePath(`/properties/${propertyId}`);
 }
+
+
 
 export async function approveProperty(formData: FormData) {
   "use server";
   const propertyId = formData.get("property_id") as string;
   const notes = formData.get("notes") as string;
 
+  // Verify admin identity via cookie-based client
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -51,7 +87,9 @@ export async function approveProperty(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  const { error } = await supabase
+  // Use admin client to bypass RLS for the update
+  const db = createAdminClient();
+  const { error } = await db
     .from("properties")
     .update({
       status: "verified",
@@ -86,7 +124,8 @@ export async function rejectProperty(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  const { error } = await supabase
+  const db = createAdminClient();
+  const { error } = await db
     .from("properties")
     .update({
       status: "rejected",
@@ -115,7 +154,8 @@ export async function suspendLandlord(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  const { error } = await supabase
+  const db = createAdminClient();
+  const { error } = await db
     .from("profiles")
     .update({ is_suspended: true })
     .eq("id", landlordId);
@@ -139,7 +179,8 @@ export async function unsuspendLandlord(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  const { error } = await supabase
+  const db = createAdminClient();
+  const { error } = await db
     .from("profiles")
     .update({ is_suspended: false })
     .eq("id", landlordId);

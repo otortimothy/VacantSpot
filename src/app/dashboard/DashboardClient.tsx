@@ -210,8 +210,9 @@ export default function DashboardClient({ initialProperties, inquiries }: Dashbo
                   <p className="text-sm">When tenants request inspections, they'll appear here.</p>
                 </div>
               ) : (
-                inquiries.map((inquiry) => {
+              inquiries.map((inquiry) => {
                   const relatedProperty = properties.find(p => p.id === inquiry.property_id);
+                  const mailtoLink = `mailto:${inquiry.tenant_email}?subject=Re: Inspection Request for ${encodeURIComponent(relatedProperty?.title || "your inquiry")}&body=Hi ${encodeURIComponent(inquiry.tenant_name)},%0D%0A%0D%0AThank you for your interest in ${encodeURIComponent(relatedProperty?.title || "my property")}.%0D%0A%0D%0A`;
                   return (
                     <div key={inquiry.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-border hover:border-primary/30 transition-all space-y-3">
                       <div className="flex items-start justify-between gap-4">
@@ -223,7 +224,7 @@ export default function DashboardClient({ initialProperties, inquiries }: Dashbo
                           inquiry.status === "pending"
                             ? "bg-amber-100 text-amber-700"
                             : inquiry.status === "responded"
-                            ? "bg-blue-100 text-blue-700"
+                            ? "bg-green-100 text-green-700"
                             : "bg-slate-100 text-slate-500"
                         }`}>
                           {inquiry.status}
@@ -234,9 +235,31 @@ export default function DashboardClient({ initialProperties, inquiries }: Dashbo
                         <span>Re: <span className="font-bold text-foreground">{relatedProperty?.title || "Unknown Property"}</span></span>
                         <span>{new Date(inquiry.created_at).toLocaleDateString()}</span>
                       </div>
+                      {/* Action buttons */}
+                      <div className="flex gap-2 pt-1 border-t border-border">
+                        <a
+                          href={mailtoLink}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black hover:opacity-90 transition-opacity"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Reply via Email
+                        </a>
+                        <a
+                          href={`tel:${inquiry.tenant_email}`}
+                          className="px-4 py-2.5 bg-muted text-foreground rounded-xl text-xs font-black hover:bg-primary/10 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          Copy Email
+                        </a>
+                      </div>
                     </div>
                   );
                 })
+
               )}
             </div>
           )}

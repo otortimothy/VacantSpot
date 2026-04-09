@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+
 import { revalidatePath } from "next/cache";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
@@ -34,6 +35,9 @@ export default async function AdminPortal() {
     revalidatePath("/admin");
   }
 
+  // Use admin client for all data queries — bypasses RLS so admin sees everything
+  const db = createAdminClient();
+
   // Fetch all data in parallel — list queries for sections below
   const [
     { data: pendingLandlords },
@@ -43,12 +47,12 @@ export default async function AdminPortal() {
     { data: rejectedProperties },
     { data: suspendedUsers },
   ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("role", "LANDLORD").eq("has_paid", true).eq("is_verified", false).eq("is_suspended", false).order("created_at", { ascending: false }),
-    supabase.from("profiles").select("*").eq("role", "LANDLORD").eq("is_verified", true).eq("is_suspended", false).order("created_at", { ascending: false }).limit(10),
-    supabase.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "pending").order("created_at", { ascending: false }),
-    supabase.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "verified").order("verified_at", { ascending: false }).limit(20),
-    supabase.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "rejected").order("created_at", { ascending: false }).limit(10),
-    supabase.from("profiles").select("*").eq("is_suspended", true).order("created_at", { ascending: false }),
+    db.from("profiles").select("*").eq("role", "LANDLORD").eq("has_paid", true).eq("is_verified", false).eq("is_suspended", false).order("created_at", { ascending: false }),
+    db.from("profiles").select("*").eq("role", "LANDLORD").eq("is_verified", true).eq("is_suspended", false).order("created_at", { ascending: false }).limit(10),
+    db.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "pending").order("created_at", { ascending: false }),
+    db.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "verified").order("verified_at", { ascending: false }).limit(20),
+    db.from("properties").select("*, profiles!properties_landlord_id_fkey(name, email)").eq("status", "rejected").order("created_at", { ascending: false }).limit(10),
+    db.from("profiles").select("*").eq("is_suspended", true).order("created_at", { ascending: false }),
   ]);
 
   // Accurate counts directly from DB (no array limits)
@@ -59,12 +63,13 @@ export default async function AdminPortal() {
     { count: pendingPropertiesCount },
     { count: pendingLandlordsCount },
   ] = await Promise.all([
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("is_verified", true).eq("is_suspended", false),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("is_suspended", true),
-    supabase.from("properties").select("*", { count: "exact", head: true }).eq("status", "verified"),
-    supabase.from("properties").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("has_paid", true).eq("is_verified", false).eq("is_suspended", false),
+    db.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("is_verified", true).eq("is_suspended", false),
+    db.from("profiles").select("*", { count: "exact", head: true }).eq("is_suspended", true),
+    db.from("properties").select("*", { count: "exact", head: true }).eq("status", "verified"),
+    db.from("properties").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    db.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("has_paid", true).eq("is_verified", false).eq("is_suspended", false),
   ]);
+
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 pb-24">
