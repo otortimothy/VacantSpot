@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS public.properties (
     type TEXT CHECK (type IN ('Apartment', 'Studio', 'Duplex', 'Bungalow')) NOT NULL,
     bedrooms INTEGER NOT NULL,
     bathrooms INTEGER NOT NULL,
+    description TEXT,
     imageUrl TEXT NOT NULL,
+
     is_verified BOOLEAN DEFAULT FALSE NOT NULL,
     landlord_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL

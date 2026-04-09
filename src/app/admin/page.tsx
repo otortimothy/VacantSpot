@@ -34,7 +34,7 @@ export default async function AdminPortal() {
     revalidatePath("/admin");
   }
 
-  // Fetch all data in parallel
+  // Fetch all data in parallel — list queries for sections below
   const [
     { data: pendingLandlords },
     { data: verifiedLandlords },
@@ -51,12 +51,27 @@ export default async function AdminPortal() {
     supabase.from("profiles").select("*").eq("is_suspended", true).order("created_at", { ascending: false }),
   ]);
 
+  // Accurate counts directly from DB (no array limits)
+  const [
+    { count: approvedLandlordsCount },
+    { count: suspendedLandlordsCount },
+    { count: livePropertiesCount },
+    { count: pendingPropertiesCount },
+    { count: pendingLandlordsCount },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("is_verified", true).eq("is_suspended", false),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("is_suspended", true),
+    supabase.from("properties").select("*", { count: "exact", head: true }).eq("status", "verified"),
+    supabase.from("properties").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "LANDLORD").eq("has_paid", true).eq("is_verified", false).eq("is_suspended", false),
+  ]);
+
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 pb-24">
       <div className="container mx-auto px-6 py-16 space-y-16 max-w-6xl">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-slate-200 dark:border-slate-800">
+        <div className="pb-12 border-b border-slate-200 dark:border-slate-800 space-y-8">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-black uppercase tracking-widest">
               Security Operations
@@ -64,18 +79,48 @@ export default async function AdminPortal() {
             <h1 className="text-5xl font-black tracking-tight text-slate-900 dark:text-white">Admin Portal</h1>
             <p className="text-xl text-slate-500 font-medium">Manage landlords, property verifications, and platform integrity.</p>
           </div>
-          <div className="flex gap-3 flex-wrap">
-            {[
-              { label: "Pending Landlords", value: pendingLandlords?.length || 0, color: "text-amber-600" },
-              { label: "Pending Properties", value: pendingProperties?.length || 0, color: "text-orange-500" },
-              { label: "Live Properties", value: verifiedProperties?.length || 0, color: "text-green-600" },
-              { label: "Suspended", value: suspendedUsers?.length || 0, color: "text-red-500" },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-border shadow-sm min-w-[110px] text-center">
-                <span className={`text-3xl font-black ${stat.color}`}>{stat.value}</span>
-                <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground mt-1 leading-tight">{stat.label}</p>
+
+          {/* Stats Grid — 5 live counts from database */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-4xl font-black text-green-600">{approvedLandlordsCount ?? 0}</span>
+              <div className="w-8 h-8 bg-green-50 dark:bg-green-900/20 text-green-600 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
               </div>
-            ))}
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-tight">Approved Landlords</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-4xl font-black text-red-500">{suspendedLandlordsCount ?? 0}</span>
+              <div className="w-8 h-8 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-tight">Suspended Accounts</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-4xl font-black text-primary">{livePropertiesCount ?? 0}</span>
+              <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-tight">Live Listings</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-4xl font-black text-orange-500">{pendingPropertiesCount ?? 0}</span>
+              <div className="w-8 h-8 bg-orange-50 dark:bg-orange-900/20 text-orange-500 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-tight">Pending Listings</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center gap-2">
+              <span className="text-4xl font-black text-amber-500">{pendingLandlordsCount ?? 0}</span>
+              <div className="w-8 h-8 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-tight">Pending Landlords</p>
+            </div>
           </div>
         </div>
 
