@@ -1,7 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface InquiryEmailProps {
   landlordEmail: string;
   landlordName: string;
@@ -27,7 +25,11 @@ export async function sendInquiryNotification({
   const propertyUrl = `${siteUrl}/properties/${propertyId}`;
   const dashboardUrl = `${siteUrl}/dashboard`;
 
+  // Lazy-initialize Resend only when sending
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   const { data, error } = await resend.emails.send({
+
    from: "VacantSpot <onboarding@resend.dev>",
     to: landlordEmail,
     subject: `New Inspection Request for "${propertyTitle}"`,
